@@ -1,0 +1,57 @@
+airsim_perception_node:
+  ros__parameters:
+    # AirSim connection settings
+    airsim:
+      # Drone name in AirSim simulation
+      drone_name: "Drone1"
+      
+    # Publishing frequencies (Hz)
+    frequencies:
+      # High frequency for pose/odometry publishing
+      pose_publish_rate: 50.0
+      # Lower frequency for point cloud publishing
+      pointcloud_publish_rate: 5.0
+      
+    # Point cloud perception parameters
+    perception:
+      # Horizontal field of view in degrees
+      horizontal_fov: 180.0
+      # vertical_fov: 180.0 # cancel vertical fov, need to calculate ray casting for vertical fov
+      # Detection range in meters
+      detection_range: 200.0
+      
+    # Map management parameters
+    simulation:
+      # Center point in AirSim coordinates
+      center_point_in_airsim: [0.0, 0.0, 0.0]
+      # Area bounds for map extraction
+      area_bounds:
+        xmin: -1000.0
+        xmax: 1000.0
+        ymin: -1000.0
+        ymax: 1000.0
+        zmin: -1000.0
+        zmax: 1000.0
+        resolution: 5.0
+        grid_size: 1.0
+      # Map storage directory - relative to map_manager.py file location
+      # "../resource/maps" points to resource/maps directory (ROS2 best practice)
+      map_dir: "/home/liang/Projects/airsim_ws/src/airsim_simple_pkg/resource/maps"
+      # Map file name
+      map_file_name: "map_cloud_1600x1600x600_1_00m.npy"
+      
+    # ROS topic names
+    topics:
+      # Odometry topic name
+      odom_topic: "/airsim/odom"
+      # Point cloud topic name
+      pointcloud_topic: "/airsim/local_pcl"
+      
+    # Frame IDs (using NED coordinate system throughout)
+    frames:
+      # World/map frame ID (NED coordinates: x=North, y=East, z=Down)
+      world_frame: "world"
+      # Drone base frame ID (NED coordinates)
+      base_frame: "base_link"
+      # Point cloud frame ID (NED coordinates, same as world for global coordinates)
+      pointcloud_frame: "world"
