@@ -35,12 +35,12 @@ airsim_perception_node:
         zmin: -1000.0
         zmax: 1000.0
         resolution: 5.0
-        grid_size: 1.0
+        grid_size: 5.0
       # Map storage directory - relative to map_manager.py file location
       # "../resource/maps" points to resource/maps directory (ROS2 best practice)
       map_dir: "/home/liang/Projects/airsim_ws/src/airsim_simple_pkg/resource/maps"
       # Map file name
-      map_file_name: "map_cloud_1600x1600x600_1_00m.npy"
+      map_file_name: "map_cloud_4000x4000x600_5_00m.npy"
       
     # ROS topic names
     topics:

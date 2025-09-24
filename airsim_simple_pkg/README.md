@@ -79,6 +79,8 @@ Map files are stored in the `resource/maps/` directory:
 **Download prepared map files:**
 - 🗺️ [Point Cloud Map Files](https://entuedu-my.sharepoint.com/:f:/g/personal/bohang001_e_ntu_edu_sg/EguwpDDSw2ZOp8eRtg9gtAsBEErPJRKCGqRQXM_-WVSe3w?e=TLwLdT)
 
+file name is map_cloud_4000x4000x600_5_00m, 4000x4000x600 is the range of the point cloud, 5_00m is the resolution of the point cloud (5.00m)
+
 **Download corresponding AirSim environment:**
 - 🏗️ [AirSim Environment](https://entuedu-my.sharepoint.com/:f:/g/personal/bohang001_e_ntu_edu_sg/EkYv4CZOF29HpsDnKVsIRk8BpkoIh-TUcX1TTsAFLgx00g?e=c50q91)
 
@@ -90,8 +92,10 @@ Map files are stored in the `resource/maps/` directory:
 # Navigate to your ROS2 workspace
 cd /path/to/your/ros2_ws
 
-# Build with symlink install for development (recommended)
-colcon build --packages-select airsim_simple_pkg --symlink-install
+# Build 
+colcon build --packages-select airsim_simple_pkg
+# or build with symlink for dev
+# colcon build --packages-select airsim_simple_pkg --symlink-install
 
 # Source the workspace
 source install/setup.bash
