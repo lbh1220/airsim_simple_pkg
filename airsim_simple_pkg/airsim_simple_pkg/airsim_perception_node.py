@@ -65,6 +65,7 @@ class AirSimPerceptionNode(Node):
         self.current_orientation = np.array([0.0, 0.0, 0.0, 1.0])  # quaternion [x,y,z,w]
         
         self.get_logger().info('AirSim Perception Node initialized successfully')
+        self.get_logger().info(f'Point cloud output frame mode: {self.pointcloud_output_frame}')
     
     def _declare_parameters(self):
         """Declare all ROS2 parameters with default values"""
@@ -80,6 +81,7 @@ class AirSimPerceptionNode(Node):
         self.declare_parameter('perception.horizontal_fov', 90.0)
         # self.declare_parameter('perception.vertical_fov', 60.0) # cancel vertical fov, need to calculate ray casting for vertical fov
         self.declare_parameter('perception.detection_range', 100.0)
+        self.declare_parameter('perception.pointcloud_output_frame', 'local')
         
         # Map parameters
         self.declare_parameter('simulation.center_point_in_airsim', [0.0, 0.0, 0.0])
@@ -101,7 +103,6 @@ class AirSimPerceptionNode(Node):
         # Frame IDs
         self.declare_parameter('frames.world_frame', 'world')
         self.declare_parameter('frames.base_frame', 'base_link')
-        self.declare_parameter('frames.pointcloud_frame', 'world')
     
     def _get_parameters(self):
         """Get all parameter values"""
@@ -118,6 +119,7 @@ class AirSimPerceptionNode(Node):
         # self.v_fov = math.radians(self.get_parameter('perception.vertical_fov').get_parameter_value().double_value)
         # self.get_logger().info(f'h_fov: {self.h_fov}, v_fov: {self.v_fov}')
         self.detection_range = self.get_parameter('perception.detection_range').get_parameter_value().double_value
+        self.pointcloud_output_frame = self.get_parameter('perception.pointcloud_output_frame').get_parameter_value().string_value
         
         # Topic names
         self.odom_topic = self.get_parameter('topics.odom_topic').get_parameter_value().string_value
@@ -126,7 +128,7 @@ class AirSimPerceptionNode(Node):
         # Frame IDs
         self.world_frame = self.get_parameter('frames.world_frame').get_parameter_value().string_value
         self.base_frame = self.get_parameter('frames.base_frame').get_parameter_value().string_value
-        self.pointcloud_frame = self.get_parameter('frames.pointcloud_frame').get_parameter_value().string_value
+
         
         # Build configuration dictionary for map manager
         self.map_config = {
@@ -312,7 +314,8 @@ class AirSimPerceptionNode(Node):
         """
         Filter point cloud based on current drone position, full orientation, and FOV parameters
         Uses map data that is already in NED coordinates (consistent with AirSim)
-        Returns filtered points in vehicle local coordinates
+        Returns filtered points in either vehicle local coordinates or world coordinates
+        depending on the pointcloud_output_frame parameter
         """
         
         # Get drone position and orientation (NED coordinates)
@@ -360,9 +363,23 @@ class AirSimPerceptionNode(Node):
         # Combine all FOV masks
         # fov_mask = h_fov_mask & v_fov_mask
         fov_mask = h_fov_mask
-        # Return filtered points in vehicle local coordinates
-        return local_frame_points[fov_mask]
-        # return local_frame_points
+        
+        # Get filtered points in local frame
+        filtered_local_points = local_frame_points[fov_mask]
+        
+        # Return points in the requested coordinate frame
+        if self.pointcloud_output_frame == "world":
+            # Transform back to world frame
+            # 1. Rotate back to world frame (forward rotation)
+            world_relative_points = np.dot(filtered_local_points, rotation_matrix)
+            
+            # 2. Translate back to world coordinates
+            filtered_world_points = world_relative_points + drone_pos
+            
+            return filtered_world_points
+        else:
+            # Return points in vehicle local coordinates (default behavior)
+            return filtered_local_points
     
     def _quaternion_to_rotation_matrix(self, quaternion):
         """
@@ -404,12 +421,17 @@ class AirSimPerceptionNode(Node):
         return yaw
     
     def _create_pointcloud_message(self, points):
-        """Create a ROS2 PointCloud2 message from numpy points array in local frame"""
+        """Create a ROS2 PointCloud2 message from numpy points array"""
         
         # Create header
         header = Header()
         header.stamp = self.get_clock().now().to_msg()
-        header.frame_id = self.base_frame  # Use base_frame for local coordinates
+        
+        # Set frame_id based on output coordinate frame
+        if self.pointcloud_output_frame == "world":
+            header.frame_id = self.world_frame  # Use world_frame for world coordinates
+        else:
+            header.frame_id = self.base_frame  # Use base_frame for local coordinates
         
         # Define point cloud fields
         fields = [

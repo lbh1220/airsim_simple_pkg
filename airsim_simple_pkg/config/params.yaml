@@ -19,6 +19,8 @@ airsim_perception_node:
       # vertical_fov: 180.0 # cancel vertical fov, need to calculate ray casting for vertical fov
       # Detection range in meters
       detection_range: 200.0
+      # Point cloud output frame mode: "local" for base_link frame, "world" for world frame
+      pointcloud_output_frame: "world"
       
     # Map management parameters
     simulation:
@@ -53,5 +55,3 @@ airsim_perception_node:
       world_frame: "world"
       # Drone base frame ID (NED coordinates)
       base_frame: "base_link"
-      # Point cloud frame ID (NED coordinates, same as world for global coordinates)
-      pointcloud_frame: "world"

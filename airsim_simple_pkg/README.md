@@ -160,6 +160,7 @@ The `airsim_perception_node` provides the following functionalities:
 | `/airsim/odom` | `nav_msgs/Odometry` | Drone pose and velocity | `world` (NED) |
 | `/airsim/local_pcl` | `sensor_msgs/PointCloud2` | Filtered point cloud in vehicle frame | `base_link` |
 
+
 ## Coordinate System
 
 This package uses the **NED (North-East-Down)** coordinate system throughout, consistent with AirSim:
@@ -181,7 +182,7 @@ This package uses the **NED (North-East-Down)** coordinate system throughout, co
 
 - ✅ All published odometry and point cloud data use NED coordinates
 - ✅ AirSimMapManager's `cloud_data` is in NED coordinates (consistent with AirSim)
-- ✅ Point clouds are published in `base_link` frame (vehicle local coordinates)
+- ✅ In parmas.yaml, **pointcloud_output_frame** could change the frame of output point cloud.
 - ✅ Ensures compatibility with other modules expecting NED coordinates
 
 ## Troubleshooting
