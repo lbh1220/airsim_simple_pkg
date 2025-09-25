@@ -48,6 +48,8 @@ airsim_perception_node:
       odom_topic: "/airsim/odom"
       # Point cloud topic name
       pointcloud_topic: "/airsim/local_pcl"
+      # Path topic name
+      path_topic: "/airsim/path"
       
     # Frame IDs (using NED coordinate system throughout)
     frames:
@@ -55,3 +57,7 @@ airsim_perception_node:
       world_frame: "world"
       # Drone base frame ID (NED coordinates)
       base_frame: "base_link"
+
+    path_following:
+      # Default velocity in m/s
+      default_velocity: 5.0

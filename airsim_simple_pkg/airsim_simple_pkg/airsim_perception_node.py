@@ -18,7 +18,7 @@ import airsim
 
 # ROS2 message types
 from geometry_msgs.msg import Pose, Twist, Vector3, Quaternion
-from nav_msgs.msg import Odometry
+from nav_msgs.msg import Odometry, Path
 from sensor_msgs.msg import PointCloud2, PointField
 from std_msgs.msg import Header
 import std_msgs.msg
@@ -53,6 +53,9 @@ class AirSimPerceptionNode(Node):
         # Initialize ROS2 publishers
         self._initialize_publishers()
         
+        # Initialize ROS2 subscribers
+        self._initialize_subscribers()
+        
         # Initialize timers for different publishing rates
         self._initialize_timers()
         
@@ -64,8 +67,13 @@ class AirSimPerceptionNode(Node):
         self.current_position = np.array([0.0, 0.0, 0.0])
         self.current_orientation = np.array([0.0, 0.0, 0.0, 1.0])  # quaternion [x,y,z,w]
         
+        # Path following state
+        self.is_following_path = False
+        self.current_path = None
+        
         self.get_logger().info('AirSim Perception Node initialized successfully')
         self.get_logger().info(f'Point cloud output frame mode: {self.pointcloud_output_frame}')
+        self.get_logger().info(f'Path following enabled with default velocity: {self.path_velocity} m/s')
     
     def _declare_parameters(self):
         """Declare all ROS2 parameters with default values"""
@@ -83,6 +91,9 @@ class AirSimPerceptionNode(Node):
         self.declare_parameter('perception.detection_range', 100.0)
         self.declare_parameter('perception.pointcloud_output_frame', 'local')
         
+        # Path following parameters
+        self.declare_parameter('path_following.default_velocity', 5.0)
+        
         # Map parameters
         self.declare_parameter('simulation.center_point_in_airsim', [0.0, 0.0, 0.0])
         self.declare_parameter('simulation.area_bounds.xmin', -1000.0)
@@ -99,6 +110,7 @@ class AirSimPerceptionNode(Node):
         # Topic names
         self.declare_parameter('topics.odom_topic', '/airsim/odom')
         self.declare_parameter('topics.pointcloud_topic', '/airsim/pointcloud')
+        self.declare_parameter('topics.path_topic', '/airsim/path')
         
         # Frame IDs
         self.declare_parameter('frames.world_frame', 'world')
@@ -121,9 +133,13 @@ class AirSimPerceptionNode(Node):
         self.detection_range = self.get_parameter('perception.detection_range').get_parameter_value().double_value
         self.pointcloud_output_frame = self.get_parameter('perception.pointcloud_output_frame').get_parameter_value().string_value
         
+        # Path following parameters
+        self.path_velocity = self.get_parameter('path_following.default_velocity').get_parameter_value().double_value
+        
         # Topic names
         self.odom_topic = self.get_parameter('topics.odom_topic').get_parameter_value().string_value
         self.pointcloud_topic = self.get_parameter('topics.pointcloud_topic').get_parameter_value().string_value
+        self.path_topic = self.get_parameter('topics.path_topic').get_parameter_value().string_value
         
         # Frame IDs
         self.world_frame = self.get_parameter('frames.world_frame').get_parameter_value().string_value
@@ -195,6 +211,20 @@ class AirSimPerceptionNode(Node):
         )
         
         self.get_logger().info('Publishers initialized')
+    
+    def _initialize_subscribers(self):
+        """Initialize ROS2 subscribers"""
+        
+        # Path subscriber for drone path following
+        self.path_subscriber = self.create_subscription(
+            Path,
+            self.path_topic,
+            self._path_callback,
+            10
+        )
+        
+        self.get_logger().info('Subscribers initialized')
+        self.get_logger().info(f'Subscribed to path topic: {self.path_topic}')
     
     def _initialize_timers(self):
         """Initialize timers for different publishing frequencies"""
@@ -476,6 +506,54 @@ class AirSimPerceptionNode(Node):
         transform.transform.rotation.w = orientation[3]
         
         self.tf_broadcaster.sendTransform(transform)
+    
+    def _path_callback(self, path_msg):
+        """Callback function for path following"""
+        try:
+            self.get_logger().info(f'Received path with {len(path_msg.poses)} waypoints')
+            
+            # Convert ROS Path to AirSim path format
+            airsim_path = []
+            for pose_stamped in path_msg.poses:
+                pose = pose_stamped.pose
+                # Create AirSim Vector3r position
+                # Assuming the path is in the same coordinate frame as the drone (NED)
+                airsim_position = airsim.Vector3r(
+                    pose.position.x,
+                    pose.position.y, 
+                    pose.position.z
+                )
+                airsim_path.append(airsim_position)
+            
+            if len(airsim_path) == 0:
+                self.get_logger().warn('Received empty path, ignoring')
+                return
+            
+            # Update path following state
+            self.current_path = airsim_path
+            self.is_following_path = True
+            
+            # Set default velocity (can be parameterized later if needed)
+            velocity = self.path_velocity  # Use the parameter value
+            
+            # Create YawMode for path following (keep current yaw rate behavior)
+            yaw_mode = airsim.YawMode(is_rate=True, yaw_or_rate=0.0)
+            
+            # Execute path following asynchronously
+            self.get_logger().info(f'Starting path following with {len(airsim_path)} waypoints at {velocity} m/s')
+            
+            # Call AirSim moveOnPathAsync API
+            self.airsim_client.moveOnPathAsync(
+                path=airsim_path,
+                velocity=velocity,
+                yaw_mode=yaw_mode,
+                vehicle_name=self.drone_name
+            )
+            
+            self.get_logger().info('Path following command sent to AirSim')
+            
+        except Exception as e:
+            self.get_logger().error(f'Error in path callback: {str(e)}')
 
 
 def main(args=None):

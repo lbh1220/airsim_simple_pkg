@@ -10,6 +10,7 @@ A ROS2 package for integrating AirSim simulation with ROS2, providing drone perc
 - [Usage](#usage)
 - [Node Architecture](#node-architecture)
 - [Topics](#topics)
+- [Path Following](#path-following)
 - [Coordinate System](#coordinate-system)
 - [Troubleshooting](#troubleshooting)
 
@@ -60,6 +61,8 @@ Edit the configuration file at `config/params.yaml` to customize:
 - **Publishing frequencies** (pose and point cloud)
 - **FOV parameters** (horizontal field of view)
 - **Detection range** (sensor range in meters)
+- **Path following velocity** (default flight speed)
+- **Topic names** (odometry, point cloud, and path topics)
 - **Map boundaries and resolution**
 - **Map storage directory and file names**
 
@@ -137,6 +140,9 @@ ros2 topic echo /airsim/odom
 # Check point cloud data  
 ros2 topic echo /airsim/local_pcl
 
+# Monitor path commands
+ros2 topic echo /airsim/path
+
 # List all topics
 ros2 topic list
 
@@ -155,6 +161,7 @@ The `airsim_perception_node` provides the following functionalities:
 3. **Pose Publishing**: Publishes drone pose as odometry at high frequency (50Hz)
 4. **Point Cloud Publishing**: Publishes filtered point cloud based on FOV at lower frequency (5Hz)
 5. **TF Broadcasting**: Publishes coordinate frame transformations
+6. **Path Following**: Subscribes to path messages and executes autonomous waypoint navigation
 
 
 ## Topics
@@ -163,6 +170,100 @@ The `airsim_perception_node` provides the following functionalities:
 |-------|-------------|-------------|-------|
 | `/airsim/odom` | `nav_msgs/Odometry` | Drone pose and velocity | `world` (NED) |
 | `/airsim/local_pcl` | `sensor_msgs/PointCloud2` | Filtered point cloud in vehicle frame | `base_link` |
+| `/airsim/path` | `nav_msgs/Path` | Path waypoints for drone to follow | `world` (NED) |
+
+
+## Path Following
+
+The `airsim_perception_node` includes path following capabilities that allow the drone to autonomously follow a sequence of waypoints published via ROS2 topics.
+
+### Features
+
+- **Automatic Path Following**: Subscribe to `nav_msgs/Path` messages and execute waypoint navigation
+- **Configurable Velocity**: Set custom flight speed for path execution
+- **Asynchronous Execution**: Non-blocking path following that doesn't interfere with perception functions
+- **NED Coordinate Support**: Seamless integration with AirSim's coordinate system
+
+### Parameters
+
+Configure path following behavior in `config/params.yaml`:
+
+```yaml
+# Path following parameters
+path_following:
+  default_velocity: 5.0    # Default flight speed in m/s
+
+# Topic configuration
+topics:
+  path_topic: '/airsim/path'    # Topic name for receiving path commands
+```
+
+### Parameter Descriptions
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path_following.default_velocity` | `double` | `5.0` | Default flight velocity in meters per second |
+| `topics.path_topic` | `string` | `'/airsim/path'` | ROS2 topic name for receiving path messages |
+
+### Usage Examples
+
+#### Publishing a Simple Path
+
+```bash
+# Example: Publish a 3-waypoint path
+ros2 topic pub /airsim/path nav_msgs/msg/Path "
+header:
+  frame_id: 'world'
+poses:
+- header:
+    frame_id: 'world'
+  pose:
+    position: {x: 10.0, y: 0.0, z: -5.0}
+    orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+- header:
+    frame_id: 'world'
+  pose:
+    position: {x: 20.0, y: 10.0, z: -5.0}
+    orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+- header:
+    frame_id: 'world'
+  pose:
+    position: {x: 0.0, y: 20.0, z: -10.0}
+    orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+"
+```
+
+#### Monitoring Path Execution
+
+```bash
+# Monitor path topic
+ros2 topic echo /airsim/path
+
+# Monitor drone position during path following
+ros2 topic echo /airsim/odom
+
+# Check node logs for path execution status
+ros2 node info /airsim_perception_node
+```
+
+### Technical Details
+
+#### Coordinate System
+- **Input**: Path waypoints should be in **NED coordinates** (consistent with AirSim)
+- **Frame**: Use `world` frame_id in path messages
+- **Units**: Positions in meters, consistent with AirSim scale
+
+#### AirSim Integration
+The node uses AirSim's `moveOnPathAsync()` API with the following configuration:
+- **Yaw Mode**: Rate-based (maintains smooth heading changes)
+- **Drivetrain**: Default AirSim configuration
+- **Lookahead**: Default adaptive lookahead for smooth path following
+
+#### Behavior Notes
+- Each new path message **overwrites** the previous path
+- Path following is **asynchronous** - the node continues publishing perception data
+- Empty paths are ignored with a warning message
+- Path execution status is logged to ROS2 console
 
 
 ## Coordinate System
@@ -187,6 +288,7 @@ This package uses the **NED (North-East-Down)** coordinate system throughout, co
 - ✅ All published odometry and point cloud data use NED coordinates
 - ✅ AirSimMapManager's `cloud_data` is in NED coordinates (consistent with AirSim)
 - ✅ In parmas.yaml, **pointcloud_output_frame** could change the frame of output point cloud.
+- ✅ Path waypoints should also use NED coordinates for proper execution
 - ✅ Ensures compatibility with other modules expecting NED coordinates
 
 ## Troubleshooting
@@ -211,11 +313,19 @@ This package uses the **NED (North-East-Down)** coordinate system throughout, co
   2. Check IP and port in configuration
   3. Ensure settings.json is properly configured
 
+**Issue**: Path following not working
+- **Solution**:
+  1. Check if path topic is correctly configured in `config/params.yaml`
+  2. Verify path message format uses NED coordinates
+  3. Ensure AirSim drone has API control enabled
+  4. Monitor node logs for path execution errors
+
 ### Development Tips
 
 - Use `--symlink-install` for development to avoid rebuilding after parameter changes
 - Monitor logs with `log_level:=debug` for detailed information
 - Use RViz for real-time visualization of pose and point cloud data
+- Test path following with simple waypoints before complex trajectories
 
 ## License
 
