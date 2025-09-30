@@ -28,8 +28,14 @@ I find a method in integrate_conda.md to integrate conda.
 
 ```bash
 # Core AirSim dependencies
+# Create a new environment named 'airsim'
+conda create -n airsim python=3.10
+# it would be better to use a same python version with /usr/bin/env python3, for example in my ubuntu, it is python==3.10.12
+conda activate airsim
+conda install -c conda-forge colcon-common-extensions
 pip3 install msgpack-rpc-python
 pip3 install airsim
+conda install numpy scipy pandas matplotlib
 ```
 
 **Install ROS2 packages:**
@@ -95,6 +101,10 @@ file name is map_cloud_4000x4000x600_5_00m, 4000x4000x600 is the range of the po
 # Navigate to your ROS2 workspace
 cd /path/to/your/ros2_ws
 
+git clone https://github.com/lbh1220/airsim_simple_pkg.git
+# download maps file
+conda activate airsim
+source /opt/ros/humble/setup.bash
 # Build 
 colcon build --packages-select airsim_simple_pkg
 # or build with symlink for dev
