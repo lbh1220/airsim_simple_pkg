@@ -100,9 +100,11 @@ file name is map_cloud_4000x4000x600_5_00m, 4000x4000x600 is the range of the po
 ```bash
 # Navigate to your ROS2 workspace
 cd /path/to/your/ros2_ws
-
+mkdir src
+cd src
 git clone https://github.com/lbh1220/airsim_simple_pkg.git
 # download maps file
+cd /path/to/your/ros2_ws
 conda activate airsim
 source /opt/ros/humble/setup.bash
 # Build 
